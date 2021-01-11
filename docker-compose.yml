@@ -1,0 +1,44 @@
+version: "3.7"
+
+services:
+    auth-server:
+        image: auth-server
+        build:
+            context: .
+            dockerfile: ./auth/Dockerfile
+        ports:
+            - 8889:3000
+        environment: 
+            DB_HOST: auth-db
+            DB_USER: auth-user
+            DB_PASSWORD: auth-pass
+            DB_NAME: db
+            LOG_LEVEL: debug
+        depends_on: 
+            - auth-db
+        volumes: 
+            - ./volumes/certs:/usr/app/certs
+
+    mongo-express:
+        image: mongo-express
+        restart: always
+        ports:
+            - 8081:8081
+        depends_on:
+            - auth-db
+        environment:
+            ME_CONFIG_MONGODB_ADMINUSERNAME: root
+            ME_CONFIG_MONGODB_ADMINPASSWORD: root
+            ME_CONFIG_MONGODB_SERVER: auth-db
+
+    auth-db:
+        image: mongo
+        volumes:
+            - ./volumes/data/auth:/data/auth-db
+            - ./scripts/init-auth-db.js:/docker-entrypoint-initdb.d/mongo-init.js
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: root
+        command: mongod --port 27017 --bind_ip_all
+        ports:
+            - 27017:27017
