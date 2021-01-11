@@ -17,7 +17,19 @@ services:
         depends_on: 
             - auth-db
         volumes: 
-            - ./volumes/certs:/usr/app/certs
+            - ./volumes/certs:/var/lib/certs
+
+    auth-db:
+        image: mongo
+        volumes:
+            - ./volumes/data/auth:/data/db
+            - ./scripts/init-auth-db.js:/docker-entrypoint-initdb.d/mongo-init.js
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: root
+        command: mongod --port 27017 --bind_ip_all
+        ports:
+            - 27017:27017
 
     mongo-express:
         image: mongo-express
@@ -31,14 +43,46 @@ services:
             ME_CONFIG_MONGODB_ADMINPASSWORD: root
             ME_CONFIG_MONGODB_SERVER: auth-db
 
-    auth-db:
-        image: mongo
-        volumes:
-            - ./volumes/data/auth:/data/auth-db
-            - ./scripts/init-auth-db.js:/docker-entrypoint-initdb.d/mongo-init.js
-        environment:
-            MONGO_INITDB_ROOT_USERNAME: root
-            MONGO_INITDB_ROOT_PASSWORD: root
-        command: mongod --port 27017 --bind_ip_all
+    app-server:
+        image: app-server
+        build:
+            context: .
+            dockerfile: ./app/Dockerfile
+        environment: 
+            DB_HOST: app-db
+            DB_USER: app_user
+            DB_PASSWORD: app_pass
+            DB_NAME: db
+            LOG_LEVEL: debug
         ports:
-            - 27017:27017
+            - 8888:3000
+        depends_on: 
+            - app-db
+        volumes: 
+            - ./volumes/certs:/var/lib/certs
+
+    app-db:
+        image: postgres
+        restart: always
+        environment: 
+            POSTGRES_PASSWORD: postgres
+        volumes:
+            - ./scripts/init-app-db.sql:/docker-entrypoint-initdb.d/init.sql
+            - ./volumes/data/app:/var/lib/postgresql/data
+
+    pgadmin: 
+        image: dpage/pgadmin4
+        restart: always
+        environment:
+            PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
+            PGADMIN_DEFAULT_PASSWORD: admin
+            PGADMIN_LISTEN_PORT: 80
+            PGADMIN_SERVER_JSON_FILE: /var/lib/pgadmin/servers.json
+        ports:
+            - 8080:80
+        volumes:
+            - ./volumes/data/pgadmin:/var/lib/pgadmin
+            - ./scripts/pgadmin-servers.json:/var/lib/pgadmin/servers.json
+        depends_on: 
+            - app-db
+    

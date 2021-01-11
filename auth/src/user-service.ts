@@ -10,6 +10,7 @@ const logger = createLogger(basename(__filename));
 type DbConfig = {
     dbHost: string,
     dbName: string,
+    dbPort: number,
     dbUser: string,
     dbPassword: string
 }
@@ -27,14 +28,14 @@ type UserService = {
 
 const createUserService = async (config: DbConfig): Promise<UserService> => {
   const {
-    dbHost, dbName, dbUser, dbPassword
+    dbHost, dbName, dbUser, dbPassword, dbPort
   } = config;
   const connectToDb = async () => {
     logger.info(`connecting to db host ${dbHost}`);
     try {
       await retry(
         () => mongoose.connect(
-          `mongodb://${dbUser}:${dbPassword}@${dbHost}/${dbName}`
+          `mongodb://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`
         ), 1000
       );
       logger.info('connected to db');

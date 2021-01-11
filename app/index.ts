@@ -1,14 +1,17 @@
+import {
+// Pool
+} from 'pg';
 import { basename, join } from 'path';
 import {
   guard, object, string, number
 } from 'decoders';
 import { Router } from 'express';
-import { AuthService, createAuthService } from './src/auth-service';
-import { UserService, createUserService } from './src/user-service';
 import { createLogger } from '../common/logger';
 import { withDefault, stringToFilePath, stringToInt } from '../common/decoders';
 import { createServer } from '../common/server';
 import { initRoutes } from './src/routes';
+import { AuthService, createAuthService } from './src/auth-service';
+import { createAuthMiddleware } from './src/middleware';
 
 const logger = createLogger(basename(__filename));
 
@@ -19,51 +22,55 @@ const envDecoder = object({
   DB_NAME: withDefault(string, 'db'),
   DB_USER: string,
   DB_PASSWORD: string,
-  DB_PORT: withDefault(number, 27017)
+  DB_PORT: withDefault(number, 5432)
 });
 
 const {
-  JWT_CERT_DIR, HTTP_PORT,
-  DB_USER, DB_PASSWORD, DB_HOST, DB_NAME, DB_PORT
+  JWT_CERT_DIR,
+  HTTP_PORT
+//   DB_USER, DB_PASSWORD, DB_HOST, DB_NAME, DB_PORT
 } = guard(envDecoder)(process.env);
 
-const certFilePath = './jwt.crt';
+// const publicKeyPath = join(JWT_CERT_DIR, 'jwt.pub');
+
+// const dbPool = new Pool({
+//   user: DB_USER,
+//   host: DB_HOST,
+//   database: DB_NAME,
+//   password: DB_PASSWORD,
+//   port: DB_PORT
+// });
+
 const publicKeyPath = join(JWT_CERT_DIR, 'jwt.pub');
 
 type Services = {
     authService: AuthService,
-    userService: UserService
 }
 
-const createServices = async (): Promise<Services> => {
+const createServices = (): Services => {
   const authService: AuthService = createAuthService({
-    certFilePath,
     publicKeyPath
   });
-  const userService: UserService = await createUserService({
-    dbHost: DB_HOST,
-    dbPort: DB_PORT,
-    dbName: DB_NAME,
-    dbUser: DB_USER,
-    dbPassword: DB_PASSWORD
-  });
   return {
-    authService,
-    userService
+    authService
   };
 };
 
 const createRouter = (services: Services): Router => {
+  const { authService } = services;
+  const authMiddleware = createAuthMiddleware(authService);
   const router = Router();
+  router.use(authMiddleware);
 
-  initRoutes(router, services);
+  initRoutes(router);
+
   return router;
 };
 
-const init = async () => {
+const init = () => {
   const { app, httpServer } = createServer(HTTP_PORT);
-  const services = await createServices();
 
+  const services = createServices();
   const router = createRouter(services);
 
   app.use(router);

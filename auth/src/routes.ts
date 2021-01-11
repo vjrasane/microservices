@@ -1,4 +1,4 @@
-import { Express, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 import { object, string, guard } from 'decoders';
 import { isObject } from 'lodash/fp';
 import { AuthService } from './auth-service';
@@ -15,9 +15,10 @@ type Services = {
     userService: UserService
 }
 
-export default (app: Express, services: Services) => {
+const initRoutes = (router: Router, services: Services) => {
   const { authService, userService } = services;
-  app.post('/login', async (req: Request, res: Response) => {
+
+  const loginHandler = async (req: Request, res: Response) => {
     let username: string; let password: string;
     try {
       ({ username, password } = guard(credentialsDecoder)(req.body));
@@ -41,9 +42,9 @@ export default (app: Express, services: Services) => {
     } catch (err) {
       res.status(401).send();
     }
-  });
+  };
 
-  app.post('/signup', async (req: Request, res: Response) => {
+  const signupHandler = async (req: Request, res: Response) => {
     try {
       const { username, password } = guard(credentialsDecoder)(req.body);
       await userService.createUser(username, password);
@@ -52,9 +53,9 @@ export default (app: Express, services: Services) => {
     }
 
     res.status(200).send();
-  });
+  };
 
-  app.post('/verify', (req: Request, res: Response) => {
+  const verifyHandler = (req: Request, res: Response) => {
     try {
       const { token } = guard(object({ token: string }))(req.body);
       const verified = authService.verifyJwt(token);
@@ -65,5 +66,11 @@ export default (app: Express, services: Services) => {
     } catch (err) {
       return res.status(400).send(err.message);
     }
-  });
+  };
+
+  router.post('/login', loginHandler);
+  router.post('/signup', signupHandler);
+  router.post('/verify', verifyHandler);
 };
+
+export { initRoutes };
