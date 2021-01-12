@@ -1,6 +1,4 @@
-import {
-// Pool
-} from 'pg';
+import { Pool } from 'pg';
 import { basename, join } from 'path';
 import {
   guard, object, string, number
@@ -12,6 +10,7 @@ import { createServer } from '../common/server';
 import { initRoutes } from './src/routes';
 import { AuthService, createAuthService } from './src/auth-service';
 import { createAuthMiddleware } from './src/middleware';
+import { createDataService, DataService } from './src/data-service';
 
 const logger = createLogger(basename(__filename));
 
@@ -26,33 +25,35 @@ const envDecoder = object({
 });
 
 const {
-  JWT_CERT_DIR,
-  HTTP_PORT
-//   DB_USER, DB_PASSWORD, DB_HOST, DB_NAME, DB_PORT
+  JWT_CERT_DIR, HTTP_PORT,
+  DB_USER, DB_PASSWORD, DB_HOST, DB_NAME, DB_PORT
 } = guard(envDecoder)(process.env);
-
-// const publicKeyPath = join(JWT_CERT_DIR, 'jwt.pub');
-
-// const dbPool = new Pool({
-//   user: DB_USER,
-//   host: DB_HOST,
-//   database: DB_NAME,
-//   password: DB_PASSWORD,
-//   port: DB_PORT
-// });
 
 const publicKeyPath = join(JWT_CERT_DIR, 'jwt.pub');
 
+const dbPool = new Pool({
+  user: DB_USER,
+  host: DB_HOST,
+  database: DB_NAME,
+  password: DB_PASSWORD,
+  port: DB_PORT
+});
+
 type Services = {
-    authService: AuthService,
+  authService: AuthService,
+  dataService: DataService
 }
 
 const createServices = (): Services => {
   const authService: AuthService = createAuthService({
     publicKeyPath
   });
+  const dataService: DataService = createDataService({
+    dbPool
+  });
   return {
-    authService
+    authService,
+    dataService
   };
 };
 
@@ -62,7 +63,7 @@ const createRouter = (services: Services): Router => {
   const router = Router();
   router.use(authMiddleware);
 
-  initRoutes(router);
+  initRoutes(router, services);
 
   return router;
 };

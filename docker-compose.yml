@@ -57,6 +57,7 @@ services:
         ports:
             - 8888:3000
         depends_on: 
+            - auth-server
             - app-db
         volumes: 
             - ./volumes/certs:/var/lib/certs
@@ -64,6 +65,8 @@ services:
     app-db:
         image: postgres
         restart: always
+        ports:
+            - 5432:5432
         environment: 
             POSTGRES_PASSWORD: postgres
         volumes:

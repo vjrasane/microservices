@@ -31,19 +31,3 @@ const createAuthService = (config: AuthConfig): AuthService => {
 };
 
 export { createAuthService, AuthService };
-
-// const authMiddleware = (req: Request, res: Response, next: Function):void => {
-//   if (req.url === '/dummy-login') {
-//     next();
-//     return;
-//   }
-//   try {
-//     const decodedJwtPayload = verifyToken(req);
-//     req.permissionByGroup = decodedJwtPayload;
-//     next();
-//   } catch (Error) {
-//     res.status(401).send({ error: 'Unauthorized' });
-//   }
-// };
-
-// export { authMiddleware };

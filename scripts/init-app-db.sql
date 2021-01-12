@@ -1,4 +1,4 @@
-CREATE ROLE app_user WITH NOINHERIT CREATEDB LOGIN PASSWORD 'app_pass';
+CREATE ROLE app_user WITH NOINHERIT LOGIN PASSWORD 'app_pass';
 
 CREATE DATABASE db OWNER app_user;
 
@@ -10,7 +10,8 @@ CREATE TABLE appdata (
     createtime TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updatetime TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    deletetime timestamptz NULL,
+    deletetime TIMESTAMPTZ NULL,
+    content VARCHAR,
     PRIMARY KEY (id)
 );
 
@@ -26,3 +27,6 @@ CREATE TRIGGER set_timestamp
 BEFORE UPDATE ON appdata
 FOR EACH ROW
 EXECUTE PROCEDURE trigger_set_timestamp();
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO app_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO app_user;
