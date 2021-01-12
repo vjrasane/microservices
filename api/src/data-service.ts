@@ -8,22 +8,6 @@ import { createLogger } from '../../common/logger';
 
 const logger = createLogger(basename(__filename));
 
-const execSql = async (pool: Pool, sqlQuery: string, args: string[] | string[][]): Promise<QueryResult> => {
-  logger.debug(`SQL QUERY: ${sqlQuery}`);
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const result = await client.query(sqlQuery, args);
-    await client.query('COMMIT');
-    return result;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw (err);
-  } finally {
-    client.release();
-  }
-};
-
 type DataRow = {
     id: string,
     createtime: Date,
@@ -40,14 +24,9 @@ const dataDecoder = object({
   content: string
 });
 
-const insertDataRowQuery = (
-  `INSERT INTO appdata (content)
-  VALUES($1)
-  RETURNING *;`
-);
-
-const selectDataRowQuery = 'SELECT * FROM appdata WHERE id = $1';
-const selectDataRowsQuery = 'SELECT * FROM appdata';
+const insertDataRowQuery = 'INSERT INTO apidata (content) VALUES($1) RETURNING *;';
+const selectDataRowQuery = 'SELECT * FROM apidata WHERE id = $1';
+const selectDataRowsQuery = 'SELECT * FROM apidata';
 
 type DataService = {
     getDataRow: (id: string) => Promise<DataRow | undefined>;
@@ -62,13 +41,32 @@ type DataConfig = {
 const createDataService = (config: DataConfig): DataService => {
   const { dbPool } = config;
 
+  const execQuery = async (
+    query: string,
+    args: string[] | string[][]
+  ): Promise<QueryResult> => {
+    logger.debug(`SQL QUERY: ${query}`);
+    const client = await dbPool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(query, args);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw (err);
+    } finally {
+      client.release();
+    }
+  };
+
   const createDataRow = async (content: string): Promise<DataRow> => {
-    const res = await execSql(dbPool, insertDataRowQuery, [content]);
+    const res = await execQuery(insertDataRowQuery, [content]);
     return guard(dataDecoder)(first(res.rows));
   };
 
   const getDataRow = async (id: string): Promise<DataRow | undefined> => {
-    const res = await execSql(dbPool, selectDataRowQuery, [id]);
+    const res = await execQuery(selectDataRowQuery, [id]);
     return flow(
       guard(array(dataDecoder)),
       first
@@ -76,7 +74,7 @@ const createDataService = (config: DataConfig): DataService => {
   };
 
   const getDataRows = async (): Promise<DataRow[]> => {
-    const res = await execSql(dbPool, selectDataRowsQuery, []);
+    const res = await execQuery(selectDataRowsQuery, []);
     return guard(array(dataDecoder))(res.rows);
   };
 

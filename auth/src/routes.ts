@@ -68,9 +68,9 @@ const initRoutes = (router: Router, services: Services) => {
     }
   };
 
-  router.post('/login', loginHandler);
-  router.post('/signup', signupHandler);
-  router.post('/verify', verifyHandler);
+  router.post('/auth/login', loginHandler);
+  router.post('/auth/signup', signupHandler);
+  router.post('/auth/verify', verifyHandler);
 };
 
 export { initRoutes };

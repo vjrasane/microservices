@@ -6,8 +6,6 @@ services:
         build:
             context: .
             dockerfile: ./auth/Dockerfile
-        ports:
-            - 8889:3000
         environment: 
             DB_HOST: auth-db
             DB_USER: auth-user
@@ -43,26 +41,24 @@ services:
             ME_CONFIG_MONGODB_ADMINPASSWORD: root
             ME_CONFIG_MONGODB_SERVER: auth-db
 
-    app-server:
-        image: app-server
+    api-server:
+        image: api-server
         build:
             context: .
-            dockerfile: ./app/Dockerfile
+            dockerfile: ./api/Dockerfile
         environment: 
-            DB_HOST: app-db
-            DB_USER: app_user
-            DB_PASSWORD: app_pass
+            DB_HOST: api-db
+            DB_USER: api_user
+            DB_PASSWORD: api_pass
             DB_NAME: db
             LOG_LEVEL: debug
-        ports:
-            - 8888:3000
         depends_on: 
             - auth-server
-            - app-db
+            - api-db
         volumes: 
             - ./volumes/certs:/var/lib/certs
 
-    app-db:
+    api-db:
         image: postgres
         restart: always
         ports:
@@ -70,8 +66,8 @@ services:
         environment: 
             POSTGRES_PASSWORD: postgres
         volumes:
-            - ./scripts/init-app-db.sql:/docker-entrypoint-initdb.d/init.sql
-            - ./volumes/data/app:/var/lib/postgresql/data
+            - ./scripts/init-api-db.sql:/docker-entrypoint-initdb.d/init.sql
+            - ./volumes/data/api:/var/lib/postgresql/data
 
     pgadmin: 
         image: dpage/pgadmin4
@@ -85,7 +81,32 @@ services:
             - 8080:80
         volumes:
             - ./volumes/data/pgadmin:/var/lib/pgadmin
-            - ./scripts/pgadmin-servers.json:/var/lib/pgadmin/servers.json
+            - ./config/pgadmin-servers.json:/var/lib/pgadmin/servers.json
         depends_on: 
-            - app-db
-    
+            - api-db
+
+    minica-ssl-certs:
+        image: twalter/minica
+        command: --ca-cert ca.pem --ca-key ca-key.pem --domains localhost
+        volumes: 
+            - ./volumes/certs/ssl:/output
+
+    openssl-dhparams:
+        image: frapsoft/openssl
+        command: dhparam -out /export/dhparam.pem 1024
+        volumes:
+            - ./volumes/certs/ssl:/export
+
+    nginx:
+        image: nginx:mainline-alpine
+        ports: 
+            - 8000:80
+            - 443:443
+        volumes:
+            - ./volumes/certs/ssl:/etc/nginx-certs
+            - ./config/nginx.conf:/etc/nginx/conf.d/nginx.conf
+        depends_on:
+            - api-server
+            - auth-server
+            - minica-ssl-certs
+            - openssl-dhparams

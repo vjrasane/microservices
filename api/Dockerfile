@@ -12,7 +12,7 @@ COPY ./yarn.lock ./yarn.lock
 RUN yarn
 
 COPY ./common ./common
-COPY ./app ./app
+COPY ./api ./api
 COPY ./types ./types
  COPY ./tsconfig.json ./tsconfig.json
 
@@ -31,4 +31,4 @@ RUN ls -la
 
 VOLUME ./certs
 
-ENTRYPOINT node build/app/index.js
+ENTRYPOINT node build/api/index.js
